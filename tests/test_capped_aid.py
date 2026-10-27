@@ -1,6 +1,7 @@
 """Pure calculation tests. No bank data, no collection, no real identities."""
 import sys
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -73,7 +74,8 @@ class UniversalCappedPolicyTests(unittest.TestCase):
         self.assertEqual(p["aid_pools"]["children"]["draft_grants"], [])
 
     def test_duplicate_subject_through_multiple_categories_rejected(self):
-        cases = (person("a", "children"), person("a", "other_needy"))
+        cases = (person("a", "children"),
+                 replace(person("a", "other_needy"), case_ref="second-case-for-a"))
         with self.assertRaisesRegex(ValueError, "person"):
             preview(500_000, 200_000, cases)
 
