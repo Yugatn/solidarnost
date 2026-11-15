@@ -3,13 +3,35 @@ import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core.allocation import (
-    ReviewedCase, commitment, core_cycle, project_split_proposal,
+    ReviewedCase, commitment, core_cycle, generate_seed, project_split_proposal,
     propose_awards, split,
 )
 
 SEED = "test-only-fixed-seed-not-for-any-real-funds-123456"
 
 class AllocationTests(unittest.TestCase):
+    def test_seed_generation_and_commitment_type_guard(self):
+        one, two = generate_seed(), generate_seed()
+        self.assertEqual(len(one), 64)
+        self.assertNotEqual(one, two)
+        self.assertEqual(commitment(one), commitment(one))
+        for invalid in (None, False, 42, "", " " * 40, "short"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    commitment(invalid)
+
+    def test_case_id_must_be_nonempty_bounded_string(self):
+        for invalid in (None, True, 5, "", " ", "x" * 129):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    ReviewedCase(invalid, "children", 100, 100, 0).validate()
+
+    def test_cycle_id_is_bounded_string(self):
+        for invalid in (None, False, 5, "", " ", "x" * 129):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    propose_awards("children", 100, [], invalid, SEED, commitment(SEED))
+
     def test_canonical_split(self):
         self.assertEqual(core_cycle(10_000_000), {
             "children": 6_000_000, "other_needy": 3_500_000, "project": 500_000,
