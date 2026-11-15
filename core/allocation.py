@@ -2,6 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
+from secrets import token_hex
 from typing import Mapping, Sequence
 
 # Author-established canonical 60%/35%/5%. No founder share deducted here.
@@ -50,7 +51,7 @@ class ReviewedCase:
     accepts_partial: bool = False
 
     def validate(self) -> None:
-        if not self.case_id or len(self.case_id) > 128:
+        if type(self.case_id) is not str or not self.case_id.strip() or len(self.case_id) > 128:
             raise ValueError("pseudonymous case_id required")
         if self.category not in ("children", "other_needy"):
             raise ValueError("invalid category")
@@ -63,9 +64,15 @@ class ReviewedCase:
         if not self.reviewed or type(self.accepts_partial) is not bool:
             raise ValueError("human review required")
 
+def generate_seed() -> str:
+    """Generate a 256-bit cryptographically random seed for a NEW cycle."""
+    return token_hex(32)
+
+
 def commitment(seed: str) -> str:
-    if not seed or len(seed) < 32:
-        raise ValueError("strong unpredictable seed required")
+    """Commit to a seed. This function cannot prove its unpredictability."""
+    if type(seed) is not str or len(seed) < 32 or not seed.strip():
+        raise ValueError("a nonempty seed string of at least 32 characters is required")
     return sha256(seed.encode("utf-8")).hexdigest()
 
 def propose_awards(
@@ -78,8 +85,10 @@ def propose_awards(
 ) -> dict:
     """Draft plan only. Publish commitment BEFORE closing candidates, then reveal seed."""
     _money(available_kopeks)
-    if category not in ("children", "other_needy") or not cycle_id:
-        raise ValueError("invalid cycle/category")
+    if category not in ("children", "other_needy"):
+        raise ValueError("invalid category")
+    if type(cycle_id) is not str or not cycle_id.strip() or len(cycle_id) > 128:
+        raise ValueError("invalid cycle identifier")
     if commitment(seed) != published_commitment:
         raise ValueError("seed commitment mismatch")
     seen: set[str] = set()
